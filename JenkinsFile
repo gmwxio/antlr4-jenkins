@@ -1,6 +1,8 @@
 node {
-	stage('checjout') {
-		checkout scm
+	stage('checkout') {
+		waitUntil {
+			checkout scm
+		}
 	}
     stage('benchmark') { // for display purposes
         tool name: 'Go1.8', type: 'go'
