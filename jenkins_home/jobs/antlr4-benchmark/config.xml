@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.10">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.28">
+    <script>node {
+   stage(&apos;benchmark&apos;) { // for display purposes
+       tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
+       dir(&apos;src/github.com/dgraph-io/dgraph&apos;) {
+           git branch: &apos;bench-antlr4&apos;, url: &apos;git://192.168.0.16/github.com/dgraph-io/dgraph/.git&apos;
+       }
+       dir(&apos;src/github.com/millergarym/antlr4-go&apos;) {
+       git branch: &apos;master&apos;, url: &apos;git://192.168.0.16/github.com/millergarym/antlr4-go/.git&apos;
+       }
+       env.GOPATH=env.WORKSPACE
+       env.GOROOT=&apos;/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
+       withEnv([&apos;PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin&apos;]) {
+            sh &apos;echo &quot;workspace $WORKSPACE&quot;&apos;
+            sh &apos;echo &quot;path $PATH&quot;&apos;
+            sh &apos;echo &quot;gopath $GOPATH&quot;&apos;
+            sh &apos;go env&apos;
+            sh &apos;go get -v github.com/wxio/gobench2plot&apos;
+            dir(&apos;src/github.com/dgraph-io/dgraph/antlr4go/lexer&apos;) {
+                // Build the test exec so that later build can get at, run it and compare./
+                // Gauges (relative numbers) are better that absolute numbers.
+                sh &apos;go test -c&apos;
+                sh &apos;./lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output&apos;
+                sh &apos;cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot &gt; ${WORKSPACE}/benchmarks.xml&apos;
+            }
+        }   
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;, csvFileName: &apos;plot-lex-time.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Time&apos;, useDescr: false, 
+            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/NsPerOp/*&apos;]], 
+            yaxis: &apos;NsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;,  csvFileName: &apos;plot-lex-allocs.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Allocs&apos;, useDescr: false, 
+            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
+            yaxis: &apos;AllocsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;,  csvFileName: &apos;plot-lex-memory.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Memory&apos;, useDescr: false, 
+            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesPerOp/*&apos;]], 
+            yaxis: &apos;AllocsBytesPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
+
+
+        // step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench.csv&apos;, exclZero: false, group: &apos;Lexer Benchmark All&apos;, 
+        //     keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Comnined&apos;, useDescr: false, 
+        //     xmlSeries: [
+        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/NsPerOp/*&apos;], 
+        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesPerOp/*&apos;], 
+        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
+        //     yaxis: &apos;Ns/AllocsBytes/Allocs Per Op (lower better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
+    }
+    // stage(&apos;benchmark-relative&apos;) {
+    //         dir(&apos;src/github.com/dgraph-io/dgraph/antlr4go/lexer&apos;) {
+    //             sh &apos;wget -O lastSuccessfulBuild-lexer.test --auth-no-challenge $JOB_URL/lastSuccessfulBuild/execution/node/3/ws/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test&apos;
+    //             sh &apos;chmod u+x lastSuccessfulBuild-lexer.test&apos;
+    //             sh &apos;./lastSuccessfulBuild-lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output&apos;
+    //             // sh &apos;${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml&apos;
+    //         }
+    // }
+ 
+
+}</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+</flow-definition>

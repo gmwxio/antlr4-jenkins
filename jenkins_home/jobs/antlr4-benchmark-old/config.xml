@@ -1,0 +1,156 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="org.jenkinsci.plugins.multiplescms.MultiSCM" plugin="multiple-scms@0.6">
+    <scms>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.5">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>git://192.168.0.16/github.com/dgraph-io/dgraph/.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>*/*</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>src/github.com/dgraph-io/dgraph</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.5">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>git://192.168.0.16/github.com/millergarym/antlr4-go/.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>*/master</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>src/github.com/millergarym/antlr4-go</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+    </scms>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>go get -v github.com/wxio/gobench2plot
+cd src/github.com/dgraph-io/dgraph/antlr4go/lexer/
+# Build the test exec so that later build can get at, run it and compare.
+# Gauges (relative numbers) are better that absolute numbers.
+go test -c
+./lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output
+cat ${WORKSPACE}/test.output | gobench2plot &gt; ${WORKSPACE}/benchmarks.xml
+</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers>
+    <hudson.plugins.plot.PlotPublisher plugin="plot@1.9">
+      <plots>
+        <hudson.plugins.plot.Plot>
+          <title>Lexer Benchmark Time</title>
+          <yaxis>ns/op - lower better</yaxis>
+          <series>
+            <hudson.plugins.plot.XMLSeries>
+              <file>benchmarks.xml</file>
+              <label></label>
+              <fileType>xml</fileType>
+              <xpathString>/Benchmarks/NsPerOp/*</xpathString>
+              <url></url>
+              <nodeTypeString>NODESET</nodeTypeString>
+            </hudson.plugins.plot.XMLSeries>
+          </series>
+          <group>Lexer Benchmark</group>
+          <numBuilds></numBuilds>
+          <csvFileName>1752316860.csv</csvFileName>
+          <csvLastModification>0</csvLastModification>
+          <style>line</style>
+          <useDescr>false</useDescr>
+          <keepRecords>false</keepRecords>
+          <exclZero>false</exclZero>
+          <logarithmic>false</logarithmic>
+        </hudson.plugins.plot.Plot>
+        <hudson.plugins.plot.Plot>
+          <title>Lexer Benchmark Memory</title>
+          <yaxis>B/op</yaxis>
+          <series>
+            <hudson.plugins.plot.XMLSeries>
+              <file>benchmarks.xml</file>
+              <label></label>
+              <fileType>xml</fileType>
+              <xpathString>/Benchmarks/AllocsBytesPerOp/*</xpathString>
+              <url></url>
+              <nodeTypeString>NODESET</nodeTypeString>
+            </hudson.plugins.plot.XMLSeries>
+          </series>
+          <group>Lexer Benchmark</group>
+          <numBuilds></numBuilds>
+          <csvFileName>1614531099.csv</csvFileName>
+          <csvLastModification>0</csvLastModification>
+          <style>line</style>
+          <useDescr>false</useDescr>
+          <keepRecords>false</keepRecords>
+          <exclZero>false</exclZero>
+          <logarithmic>false</logarithmic>
+        </hudson.plugins.plot.Plot>
+        <hudson.plugins.plot.Plot>
+          <title>Lexer Benchmark AllocsPerOp</title>
+          <yaxis>allocs/op</yaxis>
+          <series>
+            <hudson.plugins.plot.XMLSeries>
+              <file>benchmarks.xml</file>
+              <label></label>
+              <fileType>xml</fileType>
+              <xpathString>/Benchmarks/AllocsPerOp/*</xpathString>
+              <url></url>
+              <nodeTypeString>NODESET</nodeTypeString>
+            </hudson.plugins.plot.XMLSeries>
+          </series>
+          <group>Lexer Benchmark</group>
+          <numBuilds></numBuilds>
+          <csvFileName>1129456760.csv</csvFileName>
+          <csvLastModification>0</csvLastModification>
+          <style>line</style>
+          <useDescr>false</useDescr>
+          <keepRecords>false</keepRecords>
+          <exclZero>false</exclZero>
+          <logarithmic>false</logarithmic>
+        </hudson.plugins.plot.Plot>
+      </plots>
+    </hudson.plugins.plot.PlotPublisher>
+  </publishers>
+  <buildWrappers>
+    <EnvInjectBuildWrapper plugin="envinject@1.93.1">
+      <info>
+        <propertiesContent>GOPATH=$WORKSPACE
+PATH=$PATH:$WORKSPACE/bin</propertiesContent>
+        <loadFilesFromMaster>false</loadFilesFromMaster>
+      </info>
+    </EnvInjectBuildWrapper>
+    <org.jenkinsci.plugins.golang.GolangBuildWrapper plugin="golang@1.2">
+      <goVersion>Go1.8</goVersion>
+    </org.jenkinsci.plugins.golang.GolangBuildWrapper>
+  </buildWrappers>
+</project>
