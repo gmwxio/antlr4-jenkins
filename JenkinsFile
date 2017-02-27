@@ -1,15 +1,12 @@
 node {
-   stage('benchmark') { // for display purposes
-       tool name: 'Go1.8', type: 'go'
-       dir('src/github.com/dgraph-io/dgraph') {
-           git branch: 'bench-antlr4', url: 'git://192.168.0.16/github.com/dgraph-io/dgraph/.git'
-       }
-       dir('src/github.com/millergarym/antlr4-go') {
-       git branch: 'master', url: 'git://192.168.0.16/github.com/millergarym/antlr4-go/.git'
-       }
-       env.GOPATH=env.WORKSPACE
-       env.GOROOT='/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8'
-       withEnv(['PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin']) {
+	stage('checjout') {
+		checkout scm
+	}
+    stage('benchmark') { // for display purposes
+        tool name: 'Go1.8', type: 'go'
+        env.GOPATH=env.WORKSPACE
+        env.GOROOT='/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8'
+        withEnv(['PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin']) {
             sh 'echo "workspace $WORKSPACE"'
             sh 'echo "path $PATH"'
             sh 'echo "gopath $GOPATH"'
@@ -22,6 +19,7 @@ node {
                 sh './lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/test.output'
                 sh 'cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot > ${WORKSPACE}/benchmarks.xml'
             }
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test'
         }   
         step([$class: 'PlotBuilder', exclZero: false, group: 'Lexer Benchmark', csvFileName: 'plot-lex-time.csv', 
             keepRecords: false, logarithmic: false, numBuilds: '', style: 'line', title: 'Lexer Benchmark Time', useDescr: false, 
@@ -45,15 +43,22 @@ node {
         //         [file: 'benchmarks.xml', nodeType: 'NODESET', url: '', xpath: '/Benchmarks/AllocsPerOp/*']], 
         //     yaxis: 'Ns/AllocsBytes/Allocs Per Op (lower better)', yaxisMaximum: '', yaxisMinimum: ''])
     }
-//    stage('benchmark-relative') {
-//            dir('src/github.com/dgraph-io/dgraph/antlr4go/lexer') {
-//                sh 'wget -O lastSuccessfulBuild-lexer.test --auth-no-challenge $JOB_URL/lastSuccessfulBuild/execution/node/3/ws/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test'
-//                sh 'chmod u+x lastSuccessfulBuild-lexer.test'
-//                sh './lastSuccessfulBuild-lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/lastSuccessfulBuild-test.output'
-//                // sh '${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output > ${WORKSPACE}/benchmark-gauge.xml'
-//
-//            }
-   }
- 
-
+    stage('benchmark-relative') {
+        sh '''
+        if [ -f ../builds/lastSuccessfulBuild/archive/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test ]; then
+            echo "previous lexer.text exists"
+            chmod u+x ../builds/lastSuccessfulBuild/archive/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test 
+            ../builds/lastSuccessfulBuild/archive/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test \
+                -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/lastSuccessfulBuild-test.output
+            ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output > ${WORKSPACE}/benchmark-gauge.xml
+        fi
+        '''
+        step([$class: 'PlotBuilder', csvFileName: 'plot-lex-bench-ratio.csv', exclZero: false, group: 'Lexer Benchmark', 
+            keepRecords: false, logarithmic: false, numBuilds: '', style: 'line', title: 'Lexer Benchmark Ratios', useDescr: false, 
+            xmlSeries: [
+                [file: 'benchmark-gauge.xml', nodeType: 'NODESET', url: '', xpath: '/Benchmarks/TimeRation/*'], 
+                [file: 'benchmark-gauge.xml', nodeType: 'NODESET', url: '', xpath: '/Benchmarks/AllocsBytesRatio/*'], 
+                [file: 'benchmark-gauge.xml', nodeType: 'NODESET', url: '', xpath: '/Benchmarks/AllocsRatio/*']], 
+            yaxis: 'Ratios OLD:NEW (higher better)', yaxisMaximum: '', yaxisMinimum: ''])
+    }
 }
