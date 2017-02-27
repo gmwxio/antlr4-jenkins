@@ -32,6 +32,7 @@
                 sh &apos;go test -c&apos;
                 sh &apos;./lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output&apos;
                 sh &apos;cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot &gt; ${WORKSPACE}/benchmarks.xml&apos;
+                archiveArtifacts allowEmptyArchive: true, artifacts: &apos;lexer.test&apos;
             }
         }   
         step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;, csvFileName: &apos;plot-lex-time.csv&apos;, 
@@ -56,16 +57,24 @@
         //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
         //     yaxis: &apos;Ns/AllocsBytes/Allocs Per Op (lower better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
     }
-    // stage(&apos;benchmark-relative&apos;) {
-    //         dir(&apos;src/github.com/dgraph-io/dgraph/antlr4go/lexer&apos;) {
-    //             sh &apos;wget -O lastSuccessfulBuild-lexer.test --auth-no-challenge $JOB_URL/lastSuccessfulBuild/execution/node/3/ws/src/github.com/dgraph-io/dgraph/antlr4go/lexer/lexer.test&apos;
-    //             sh &apos;chmod u+x lastSuccessfulBuild-lexer.test&apos;
-    //             sh &apos;./lastSuccessfulBuild-lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output&apos;
-    //             // sh &apos;${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml&apos;
-    //         }
-    // }
+    stage(&apos;benchmark-relative&apos;) {
+        sh &apos;&apos;&apos;
+        if [ -f ../builds/lastSuccessfulBuild/archive/lexer.test ]; then
+            echo &quot;previous lexer.text exists&quot;
+            chmod u+x ../builds/lastSuccessfulBuild/archive/lexer.test
+            ../builds/lastSuccessfulBuild/archive/lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output
+            ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml
+        fi
+        &apos;&apos;&apos;
+        step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench-ratio.csv&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Ratios&apos;, useDescr: false, 
+            xmlSeries: [
+                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/TimeRation/*&apos;], 
+                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesRatio/*&apos;], 
+                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsRatio/*&apos;]], 
+            yaxis: &apos;Ratios OLD:NEW (higher better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
+   }
  
-
 }</script>
     <sandbox>true</sandbox>
   </definition>
