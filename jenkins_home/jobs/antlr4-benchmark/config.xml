@@ -49,6 +49,9 @@
   </properties>
   <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.28">
     <script>node {
+    stage(&apos;tool-setup&apos;) {
+        tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
+    }
     stage(&apos;checkout&apos;) {
         dir(&apos;src/&apos; + benchPath) {
             git branch: benchBranch, url: &apos;git://&apos; + benchAddr + &apos;/&apos; + benchPath + &apos;/.git&apos;
@@ -58,7 +61,6 @@
         }
     }
     stage(&apos;benchmark&apos;) { // for display purposes
-        tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
         env.GOPATH=env.WORKSPACE
         env.GOROOT=&apos;/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
         withEnv([&apos;PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin&apos;]) {
