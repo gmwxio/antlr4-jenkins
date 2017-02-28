@@ -4,47 +4,88 @@
   <description></description>
   <keepDependencies>false</keepDependencies>
   <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>benchAddr</name>
+          <description></description>
+          <defaultValue>192.168.0.16</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>benchPath</name>
+          <description></description>
+          <defaultValue>github.com/dgraph-io/dgraph</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>benchBranch</name>
+          <description></description>
+          <defaultValue>bench-antlr4</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>benchCode</name>
+          <description></description>
+          <defaultValue>antlr4go/lexer</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>antlrAddr</name>
+          <description></description>
+          <defaultValue>192.168.0.16</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>antlrPath</name>
+          <description></description>
+          <defaultValue>github.com/antlr/antlr4</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>antlrBranch</name>
+          <description></description>
+          <defaultValue>master</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
       <triggers/>
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
   </properties>
   <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.28">
     <script>node {
-   stage(&apos;benchmark&apos;) { // for display purposes
-       tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
-       dir(&apos;src/github.com/dgraph-io/dgraph&apos;) {
-           git branch: &apos;bench-antlr4&apos;, url: &apos;git://192.168.0.16/github.com/dgraph-io/dgraph/.git&apos;
-       }
-       dir(&apos;src/github.com/millergarym/antlr4-go&apos;) {
-       git branch: &apos;master&apos;, url: &apos;git://192.168.0.16/github.com/millergarym/antlr4-go/.git&apos;
-       }
-       env.GOPATH=env.WORKSPACE
-       env.GOROOT=&apos;/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
-       withEnv([&apos;PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin&apos;]) {
+    stage(&apos;checkout&apos;) {
+        dir(&apos;src/&apos; + benchPath) {
+            git branch: benchBranch, url: &apos;git://&apos; + benchAddr + &apos;/&apos; + benchPath + &apos;/.git&apos;
+        }
+        dir(&apos;src/&apos; + antlrPath) {
+            git branch: antlrBranch, url: &apos;git://&apos; + antlrAddr + &apos;/&apos; + antlrPath + &apos;/.git&apos;
+        }
+    }
+    stage(&apos;benchmark&apos;) { // for display purposes
+        tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
+        env.GOPATH=env.WORKSPACE
+        env.GOROOT=&apos;/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
+        withEnv([&apos;PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin&apos;]) {
             sh &apos;echo &quot;workspace $WORKSPACE&quot;&apos;
             sh &apos;echo &quot;path $PATH&quot;&apos;
             sh &apos;echo &quot;gopath $GOPATH&quot;&apos;
             sh &apos;go env&apos;
             sh &apos;go get -v github.com/wxio/gobench2plot&apos;
-            dir(&apos;src/github.com/dgraph-io/dgraph/antlr4go/lexer&apos;) {
+            dir(&apos;src/&apos; + benchPath + &apos;/&apos; + benchCode) {
                 // Build the test exec so that later build can get at, run it and compare./
                 // Gauges (relative numbers) are better that absolute numbers.
-                sh &apos;go test -c&apos;
-                sh &apos;./lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output&apos;
+                sh &apos;go test -c -o bench.test&apos;
+                sh &apos;./bench.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output&apos;
                 sh &apos;cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot &gt; ${WORKSPACE}/benchmarks.xml&apos;
-                archiveArtifacts allowEmptyArchive: true, artifacts: &apos;lexer.test&apos;
             }
+            archiveArtifacts allowEmptyArchive: true, artifacts: &apos;src/&apos; + benchPath + &apos;/&apos; + benchCode + &apos;/bench.test&apos;
         }   
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;, csvFileName: &apos;plot-lex-time.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Time&apos;, useDescr: false, 
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;, csvFileName: &apos;plot-time.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;01 Benchmark Time&apos;, useDescr: false, 
             xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/NsPerOp/*&apos;]], 
             yaxis: &apos;NsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;,  csvFileName: &apos;plot-lex-allocs.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Allocs&apos;, useDescr: false, 
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;,  csvFileName: &apos;plot-allocs.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;02 Benchmark Allocs&apos;, useDescr: false, 
             xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
             yaxis: &apos;AllocsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;,  csvFileName: &apos;plot-lex-memory.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Memory&apos;, useDescr: false, 
+        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;,  csvFileName: &apos;plot-memory.csv&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;03 Benchmark Memory&apos;, useDescr: false, 
             xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesPerOp/*&apos;]], 
             yaxis: &apos;AllocsBytesPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
 
@@ -58,23 +99,26 @@
         //     yaxis: &apos;Ns/AllocsBytes/Allocs Per Op (lower better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
     }
     stage(&apos;benchmark-relative&apos;) {
+        env.benchPath = benchPath
+        env.benchCode = benchCode
         sh &apos;&apos;&apos;
-        if [ -f ../builds/lastSuccessfulBuild/archive/lexer.test ]; then
-            echo &quot;previous lexer.text exists&quot;
-            chmod u+x ../builds/lastSuccessfulBuild/archive/lexer.test
-            ../builds/lastSuccessfulBuild/archive/lexer.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output
+        pwd
+        if [ -f ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test ]; then
+            echo &quot;previous bench.text exists&quot;
+            chmod u+x ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test 
+            ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test \
+                -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output
             ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml
         fi
         &apos;&apos;&apos;
-        step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench-ratio.csv&apos;, exclZero: false, group: &apos;Lexer Benchmark&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Ratios&apos;, useDescr: false, 
+        step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench-ratio.csv&apos;, exclZero: false, group: &apos;Benchmark&apos;, 
+            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;00 Benchmark Ratios&apos;, useDescr: false, 
             xmlSeries: [
                 [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/TimeRation/*&apos;], 
                 [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesRatio/*&apos;], 
                 [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsRatio/*&apos;]], 
             yaxis: &apos;Ratios OLD:NEW (higher better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-   }
- 
+    }
 }</script>
     <sandbox>true</sandbox>
   </definition>
