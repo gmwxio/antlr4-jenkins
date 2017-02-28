@@ -65,8 +65,9 @@ git://192.168.0.16/github.com/antlr/antlr4/.git</description>
     }
     stage(&apos;benchmark&apos;) { // for display purposes
         env.GOPATH=env.WORKSPACE
-        env.GOROOT=&apos;/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
-        withEnv([&apos;PATH+EXTRA=/var/jenkins_home/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8/bin&apos;]) {
+        env.GOROOT=env.JENKINS_HOME+&apos;/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
+        sh &apos;echo &quot;goroot $GOROOT&quot;&apos;
+        withEnv([&quot;PATH+EXTRA=${env.GOROOT}/bin&quot;]) {
             sh &apos;echo &quot;workspace $WORKSPACE&quot;&apos;
             sh &apos;echo &quot;path $PATH&quot;&apos;
             sh &apos;echo &quot;gopath $GOPATH&quot;&apos;
@@ -106,12 +107,21 @@ git://192.168.0.16/github.com/antlr/antlr4/.git</description>
     stage(&apos;benchmark-relative&apos;) {
         env.benchPath = benchPath
         env.benchCode = benchCode
+    
+        sh &apos;rm -rf last&apos;
+        step([$class: &apos;CopyArtifact&apos;, 
+            filter: &apos;src/&apos; + benchPath + &apos;/&apos; + benchCode + &apos;/bench.test&apos;, 
+            optional: true, 
+            projectName: &apos;antlr4-benchmark&apos;, 
+            resultVariableSuffix: &apos;_last&apos;,
+            selector: [$class: &apos;StatusBuildSelector&apos;, stable: false],
+            target: &apos;last&apos;])
+  
         sh &apos;&apos;&apos;
-        pwd
-        if [ -f ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test ]; then
+        if [ -f last/src/${benchPath}/${benchCode}/bench.test ]; then
             echo &quot;previous bench.text exists&quot;
-            chmod u+x ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test 
-            ../builds/lastSuccessfulBuild/archive/src/${benchPath}/${benchCode}/bench.test \
+            chmod u+x last/src/${benchPath}/${benchCode}/bench.test 
+            last/src/${benchPath}/${benchCode}/bench.test \
                 -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output
             ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml
         fi
