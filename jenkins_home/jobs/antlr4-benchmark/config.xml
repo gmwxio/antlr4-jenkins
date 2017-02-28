@@ -7,9 +7,11 @@
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
-          <name>benchAddr</name>
-          <description></description>
-          <defaultValue>192.168.0.16</defaultValue>
+          <name>benchRepo</name>
+          <description>#local example - from src dir run 
+git daemon --reuseaddr --base-path=. --export-all --verbose --enable=receive-pack
+git://192.168.0.16/github.com/dgraph-io/dgraph/.git</description>
+          <defaultValue>https://github.com/millergarym/dgraph.git</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>benchPath</name>
@@ -27,9 +29,10 @@
           <defaultValue>antlr4go/lexer</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>antlrAddr</name>
-          <description></description>
-          <defaultValue>192.168.0.16</defaultValue>
+          <name>antlrRepo</name>
+          <description>local example
+git://192.168.0.16/github.com/antlr/antlr4/.git</description>
+          <defaultValue>https://github.com/wxio/antlr4.git</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>antlrPath</name>
@@ -48,16 +51,16 @@
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
   </properties>
   <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.28">
-    <script>node {
+    <script>node { 
     stage(&apos;tool-setup&apos;) {
         tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
     }
     stage(&apos;checkout&apos;) {
         dir(&apos;src/&apos; + benchPath) {
-            git branch: benchBranch, url: &apos;git://&apos; + benchAddr + &apos;/&apos; + benchPath + &apos;/.git&apos;
+            git branch: benchBranch, url: benchRepo, clearWorkspace: true
         }
         dir(&apos;src/&apos; + antlrPath) {
-            git branch: antlrBranch, url: &apos;git://&apos; + antlrAddr + &apos;/&apos; + antlrPath + &apos;/.git&apos;
+            git branch: antlrBranch, url: antlrRepo, clearWorkspace: true
         }
     }
     stage(&apos;benchmark&apos;) { // for display purposes
