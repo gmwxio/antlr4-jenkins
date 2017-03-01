@@ -25,6 +25,26 @@ From the src directory run the following git command.
 git daemon --reuseaddr --base-path=. --export-all --verbose --enable=receive-pack
 ```
 
+## Install Jekins on Ubuntu manually
+
+```
+wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
+```
+Then add the following entry in your 
+```
+/etc/apt/sources.list:
+```
+
+```
+deb https://pkg.jenkins.io/debian-stable binary/
+```
+Update your local package index, then finally install Jenkins:
+
+```
+sudo apt-get update
+sudo apt-get install jenkins
+```
+
 ## Reading material
 This was based on this
 
