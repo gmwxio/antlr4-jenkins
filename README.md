@@ -1,5 +1,12 @@
 # Antlr4's Jenkin Build - Benchmarks, Code Coverage etc.
 
+Have a look at http://jenkins.wx.io:8080/.
+It'll probably be up till the end of the month (March 2017).
+
+![Google Compute Engine 2Core Hicpu](https://github.com/wxio/antlr4-jenkins/raw/master/benchmark-build-cge-2core-highcpu.png)
+
+![Local Docker Benchmarking](https://github.com/wxio/antlr4-jenkins/raw/master/benchmark-builds.png)
+
 ```
 git clone https://github.com/wxio/antlr4-jenkins.git
 docker build -t antlr4-jenkins .
