@@ -27,6 +27,7 @@ node {
                 sh './bench.test -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/test.output'
                 sh 'cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot > ${WORKSPACE}/benchmarks.xml'
             }
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'test.output'
             archiveArtifacts allowEmptyArchive: true, artifacts: 'src/' + benchPath + '/' + benchCode + '/bench.test'
         }   
         step([$class: 'PlotBuilder', exclZero: false, group: 'Benchmark', csvFileName: 'plot-time.csv', 
@@ -58,20 +59,29 @@ node {
         sh 'rm -rf last'
         step([$class: 'CopyArtifact', 
             filter: 'src/' + benchPath + '/' + benchCode + '/bench.test', 
-            optional: true, 
-            projectName: 'antlr4-benchmark', 
+            optional: true, projectName: 'antlr4-benchmark', 
+            selector: [$class: 'StatusBuildSelector', stable: false],
+            target: 'last'])
+        step([$class: 'CopyArtifact', 
+            filter: 'test.output', optional: true, projectName: 'antlr4-benchmark', 
             selector: [$class: 'StatusBuildSelector', stable: false],
             target: 'last'])
   
         sh '''
-        if [ -f last/src/${benchPath}/${benchCode}/bench.test ]; then
+        if [ -f last/test.output ]; then
             echo "previous bench.text exists"
-            chmod u+x last/src/${benchPath}/${benchCode}/bench.test 
-            last/src/${benchPath}/${benchCode}/bench.test \
-                -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/lastSuccessfulBuild-test.output
-            ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output > ${WORKSPACE}/benchmark-gauge.xml
+            ${WORKSPACE}/bin/gobench2plot -gauge last/test.output test.output > ${WORKSPACE}/benchmark-gauge.xml
         fi
         '''
+        // sh '''
+        // if [ -f last/src/${benchPath}/${benchCode}/bench.test ]; then
+        //     echo "previous bench.text exists"
+        //     chmod u+x last/src/${benchPath}/${benchCode}/bench.test 
+        //     last/src/${benchPath}/${benchCode}/bench.test \
+        //         -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/lastSuccessfulBuild-test.output
+        //     ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output > ${WORKSPACE}/benchmark-gauge.xml
+        // fi
+        // '''
         step([$class: 'PlotBuilder', csvFileName: 'plot-lex-bench-time-ratio.csv', exclZero: false, group: 'Benchmark', 
             keepRecords: false, logarithmic: false, numBuilds: '', style: 'line', title: '01 Benchmark Time Ratios', useDescr: false, 
             xmlSeries: [

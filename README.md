@@ -104,3 +104,8 @@ move to CGE or some other host
 https://docs.docker.com/machine/drivers/gce/
 
 https://kubernetes.io/docs/user-guide/volumes/
+
+
+https://mrooding.me/dockerized-jenkins-2-on-google-cloud-platform-34747725e786#.ejsk1n4nh
+
+https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
