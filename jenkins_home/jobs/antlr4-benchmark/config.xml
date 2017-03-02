@@ -4,13 +4,15 @@
   <description></description>
   <keepDependencies>false</keepDependencies>
   <properties>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
           <name>benchRepo</name>
           <description>#local example - from src dir run 
 git daemon --reuseaddr --base-path=. --export-all --verbose --enable=receive-pack
-git://192.168.0.16/github.com/dgraph-io/dgraph/.git</description>
+git://192.168.0.16/github.com/dgraph-io/dgraph/.git
+https://github.com/millergarym/dgraph.git</description>
           <defaultValue>https://github.com/millergarym/dgraph.git</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
@@ -31,7 +33,8 @@ git://192.168.0.16/github.com/dgraph-io/dgraph/.git</description>
         <hudson.model.StringParameterDefinition>
           <name>antlrRepo</name>
           <description>local example
-git://192.168.0.16/github.com/antlr/antlr4/.git</description>
+git://192.168.0.16/github.com/antlr/antlr4/.git
+https://github.com/wxio/antlr4.git</description>
           <defaultValue>https://github.com/wxio/antlr4.git</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
@@ -44,98 +47,36 @@ git://192.168.0.16/github.com/antlr/antlr4/.git</description>
           <description></description>
           <defaultValue>master</defaultValue>
         </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>jenkinsfileRepo</name>
+          <description>git://192.168.0.16/github.com/wxio/antlr4-jenkins/.git
+https://github.com/wxio/antlr4-jenkins.git</description>
+          <defaultValue>https://github.com/wxio/antlr4-jenkins.git</defaultValue>
+        </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
       <triggers/>
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
   </properties>
-  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.28">
-    <script>node { 
-    stage(&apos;tool-setup&apos;) {
-        tool name: &apos;Go1.8&apos;, type: &apos;go&apos;
-    }
-    stage(&apos;checkout&apos;) {
-        dir(&apos;src/&apos; + benchPath) {
-            git branch: benchBranch, url: benchRepo, clearWorkspace: true
-        }
-        dir(&apos;src/&apos; + antlrPath) {
-            git branch: antlrBranch, url: antlrRepo, clearWorkspace: true
-        }
-    }
-    stage(&apos;benchmark&apos;) { // for display purposes
-        env.GOPATH=env.WORKSPACE
-        env.GOROOT=env.JENKINS_HOME+&apos;/tools/org.jenkinsci.plugins.golang.GolangInstallation/Go1.8&apos;
-        sh &apos;echo &quot;goroot $GOROOT&quot;&apos;
-        withEnv([&quot;PATH+EXTRA=${env.GOROOT}/bin&quot;]) {
-            sh &apos;echo &quot;workspace $WORKSPACE&quot;&apos;
-            sh &apos;echo &quot;path $PATH&quot;&apos;
-            sh &apos;echo &quot;gopath $GOPATH&quot;&apos;
-            sh &apos;go env&apos;
-            sh &apos;go get -v github.com/wxio/gobench2plot&apos;
-            dir(&apos;src/&apos; + benchPath + &apos;/&apos; + benchCode) {
-                // Build the test exec so that later build can get at, run it and compare./
-                // Gauges (relative numbers) are better that absolute numbers.
-                sh &apos;go test -c -o bench.test&apos;
-                sh &apos;./bench.test -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/test.output&apos;
-                sh &apos;cat ${WORKSPACE}/test.output | ${WORKSPACE}/bin/gobench2plot &gt; ${WORKSPACE}/benchmarks.xml&apos;
-            }
-            archiveArtifacts allowEmptyArchive: true, artifacts: &apos;src/&apos; + benchPath + &apos;/&apos; + benchCode + &apos;/bench.test&apos;
-        }   
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;, csvFileName: &apos;plot-time.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;01 Benchmark Time&apos;, useDescr: false, 
-            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/NsPerOp/*&apos;]], 
-            yaxis: &apos;NsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;,  csvFileName: &apos;plot-allocs.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;02 Benchmark Allocs&apos;, useDescr: false, 
-            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
-            yaxis: &apos;AllocsPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-        step([$class: &apos;PlotBuilder&apos;, exclZero: false, group: &apos;Benchmark&apos;,  csvFileName: &apos;plot-memory.csv&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;03 Benchmark Memory&apos;, useDescr: false, 
-            xmlSeries: [[file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesPerOp/*&apos;]], 
-            yaxis: &apos;AllocsBytesPerOp&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-
-
-        // step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench.csv&apos;, exclZero: false, group: &apos;Lexer Benchmark All&apos;, 
-        //     keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;Lexer Benchmark Comnined&apos;, useDescr: false, 
-        //     xmlSeries: [
-        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/NsPerOp/*&apos;], 
-        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesPerOp/*&apos;], 
-        //         [file: &apos;benchmarks.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsPerOp/*&apos;]], 
-        //     yaxis: &apos;Ns/AllocsBytes/Allocs Per Op (lower better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-    }
-    stage(&apos;benchmark-relative&apos;) {
-        env.benchPath = benchPath
-        env.benchCode = benchCode
-    
-        sh &apos;rm -rf last&apos;
-        step([$class: &apos;CopyArtifact&apos;, 
-            filter: &apos;src/&apos; + benchPath + &apos;/&apos; + benchCode + &apos;/bench.test&apos;, 
-            optional: true, 
-            projectName: &apos;antlr4-benchmark&apos;, 
-            resultVariableSuffix: &apos;_last&apos;,
-            selector: [$class: &apos;StatusBuildSelector&apos;, stable: false],
-            target: &apos;last&apos;])
-  
-        sh &apos;&apos;&apos;
-        if [ -f last/src/${benchPath}/${benchCode}/bench.test ]; then
-            echo &quot;previous bench.text exists&quot;
-            chmod u+x last/src/${benchPath}/${benchCode}/bench.test 
-            last/src/${benchPath}/${benchCode}/bench.test \
-                -test.run=XXX -test.v  -test.bench . -test.benchmem &gt; ${WORKSPACE}/lastSuccessfulBuild-test.output
-            ${WORKSPACE}/bin/gobench2plot -gauge lastSuccessfulBuild-test.output test.output &gt; ${WORKSPACE}/benchmark-gauge.xml
-        fi
-        &apos;&apos;&apos;
-        step([$class: &apos;PlotBuilder&apos;, csvFileName: &apos;plot-lex-bench-ratio.csv&apos;, exclZero: false, group: &apos;Benchmark&apos;, 
-            keepRecords: false, logarithmic: false, numBuilds: &apos;&apos;, style: &apos;line&apos;, title: &apos;00 Benchmark Ratios&apos;, useDescr: false, 
-            xmlSeries: [
-                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/TimeRation/*&apos;], 
-                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsBytesRatio/*&apos;], 
-                [file: &apos;benchmark-gauge.xml&apos;, nodeType: &apos;NODESET&apos;, url: &apos;&apos;, xpath: &apos;/Benchmarks/AllocsRatio/*&apos;]], 
-            yaxis: &apos;Ratios OLD:NEW (higher better)&apos;, yaxisMaximum: &apos;&apos;, yaxisMinimum: &apos;&apos;])
-    }
-}</script>
-    <sandbox>true</sandbox>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.28">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.5">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>${jenkinsfileRepo}</url>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/master</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>Jenkinsfile</scriptPath>
   </definition>
   <triggers/>
 </flow-definition>
