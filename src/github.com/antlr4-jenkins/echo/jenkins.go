@@ -54,7 +54,8 @@ func JenkinsIntentHandler(echoReq *alexa.EchoRequest, echoResp *alexa.EchoRespon
 		echoResp.OutputSpeech("The last build was " + resp.Color).EndSession(false)
 		fmt.Printf("color %v\n", resp.Color)
 	case "Menu":
-		echoResp.OutputSpeechSSML("<speak><say-as interpret-as='interjection'>Seriously</say-as> you actually thought that was implemented</speak>").EndSession(true)
+		echoResp.OutputSpeechSSML("<speak><say-as interpret-as='interjection'>Seriously</say-as> you actually thought that was implemented</speak>").
+			EndSession(false)
 	case "Bye":
 		echoResp.OutputSpeech("Seeya later.").EndSession(true)
 	}
