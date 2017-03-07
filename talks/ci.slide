@@ -1,0 +1,124 @@
+Go Benchmarking & Continuous Integration
+Short Talk
+9 Mar 2017
+
+Sydney Go meetup
+
+Gary Miller
+WX
+gm@wx.io
+
+* http://jenkins.wx.io:8080/
+
+.image plot-00.png _ 800
+
+* http://jenkins.wx.io:8080/
+
+.image plot-01.png _ 800
+
+
+* http://jenkins.wx.io:8080/job/antlr4-benchmark/plotpipeline/
+
+.image plot-1.png 600 _
+
+* http://jenkins.wx.io:8080/
+
+.image plot-2.png 600 _
+
+* http://jenkins.wx.io:8080/
+
+.image plot-3.png 600 _
+
+
+*  
+
+	$ go test -c -o bench.test
+	$ ./bench.test -test.run=XXX -test.v  -test.bench . -test.benchmem > ${WORKSPACE}/test.output
+
+example test.output
+
+	BenchmarkQuery/q1.1-6         	   10000	    154948 ns/op	   77860 B/op	    1099 allocs/op
+	BenchmarkQuery/q1.2-6         	   10000	    167801 ns/op	   85142 B/op	    1163 allocs/op
+	BenchmarkQuery/q2.1-6         	   10000	    159904 ns/op	   88084 B/op	    1255 allocs/op
+	BenchmarkQuery/q2.2-6         	   10000	    182950 ns/op	  103641 B/op	    1381 allocs/op
+	BenchmarkQuery/q3.1-6         	   10000	    177743 ns/op	   95470 B/op	    1371 allocs/op
+	BenchmarkQuery/q3.2-6         	   10000	    181291 ns/op	   97861 B/op	    1390 allocs/op
+	BenchmarkQuery/q4.1-6         	   10000	    200685 ns/op	  103005 B/op	    1480 allocs/op
+	BenchmarkQuery/q4.2-6         	   10000	    202884 ns/op	  105397 B/op	    1499 allocs/op
+	BenchmarkQuery/q5.1-6         	   10000	    199465 ns/op	  103005 B/op	    1480 allocs/op
+	BenchmarkQuery/q5.2-6         	   10000	    212989 ns/op	  105399 B/op	    1499 allocs/op
+	PASS
+
+* Jenkins + Plugins
+- Plot
+- Go installer
+etc.
+
+https://github.com/wxio/gobench2plot
+
+	$ cat test.output | gobench2plot > benchmarks.xml
+
+	$ gobench2plot -gauge last/test.output test.output > benchmark-gauge.xml
+
+
+* Local benchmark comparison
+
+https://godoc.org/golang.org/x/tools/cmd/benchcmp
+
+	benchmark                 old ns/op     new ns/op     delta
+	BenchmarkQuery/q1.1-6     281267        154948        -44.91%
+	BenchmarkQuery/q1.2-6     300206        167801        -44.10%
+	
+	benchmark                 old allocs     new allocs     delta
+	BenchmarkQuery/q1.1-6     1789           1099           -38.57%
+	BenchmarkQuery/q1.2-6     1928           1163           -39.68%
+
+	benchmark                 old bytes     new bytes     delta
+	BenchmarkQuery/q1.1-6     89635         77860         -13.14%
+	BenchmarkQuery/q1.2-6     99177         85142         -14.15%
+
+
+* Running CI locally
+
+https://github.com/wxio/antlr4-jenkins
+
+Jenkins
+
+	docker run -p 8080:8080 -p 50000:50000 -v `pwd`/jenkins_home:/var/jenkins_home antlr4-jenkins
+
+Local git server
+
+	git daemon --reuseaddr --base-path=. --export-all --verbose --enable=receive-pack
+
+* 
+
+.image launch.png 600 _
+
+* Profiling
+
+	go test -test.run=XXX -v  -bench . -cpuprofile cpu.out -test.benchtime=5s
+	go tool pprof --nodefraction=0.2 lexer.test cpu.out
+	(pprof) web
+
+.image pprof001.png
+
+* Memory Profiling
+
+	$ go test -c 
+	$ ./lexer.test -test.run=XXX -test.v  -test.benchtime=10s -test.bench . -test.memprofile mem.out
+	$ go tool pprof  --alloc_space lexer.test mem.out
+	(pprof) top
+	6811.14MB of 7238.24MB total (94.10%)
+	Dropped 3 nodes (cum <= 36.19MB)
+	Showing top 10 nodes out of 33 (cum >= 114MB)
+		flat  flat%   sum%        cum   cum%
+	1623.62MB 22.43% 22.43%  1623.62MB 22.43%  github.com/antlr/antlr4/runtime/Go/antlr.NewBaseATNConfig
+	1241.56MB 17.15% 39.58%  1241.56MB 17.15%  github.com/antlr/antlr4/runtime/Go/antlr.NewOrderedATNConfigSet
+	1204.31MB 16.64% 56.22%  1318.32MB 18.21%  github.com/antlr/antlr4/runtime/Go/antlr.(*Set).add
+	1064.04MB 14.70% 70.92%  1514.59MB 20.92%  github.com/antlr/antlr4/runtime/Go/antlr.(*LexerATNSimulator).addDFAEdge
+	509.02MB  7.03% 77.95%  1843.62MB 25.47%  github.com/antlr/antlr4/runtime/Go/antlr.NewLexerATNConfig4
+	423.55MB  5.85% 83.81%   477.55MB  6.60%  github.com/antlr/antlr4/runtime/Go/antlr.(*LexerATNSimulator).addDFAState
+	333.03MB  4.60% 88.41%   333.03MB  4.60%  github.com/antlr/antlr4/runtime/Go/antlr.NewCommonToken
+	184.01MB  2.54% 90.95%  1502.33MB 20.76%  github.com/antlr/antlr4/runtime/Go/antlr.(*BaseATNConfigSet).Add
+		114MB  1.58% 92.52%   403.03MB  5.57%  github.com/antlr/antlr4/runtime/Go/antlr.NewLexerATNConfig3
+		114MB  1.57% 94.10%      114MB  1.57%  github.com/antlr/antlr4/runtime/Go/antlr.(*LexerATNConfig).HashCode
